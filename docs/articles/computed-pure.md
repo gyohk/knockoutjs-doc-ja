@@ -1,26 +1,29 @@
 # PureComputedObservable
 
-Pure computed observables, introduced in Knockout 3.2.0, provide performance and memory benefits over regular computed observables for most applications. This is because a pure computed observable doesn’t maintain subscriptions to its dependencies when it has no subscribers itself. This feature:
+Knockout 3.2.0 で導入された PureComputedObservables は、ほとんどのアプリケーションにおいて 通常の ComputedObserfable よりも優れたパフォーマンスとメモリ上の利点を提供します。
+PureComputedObservable は自身の購読者が存在しない場合、その依存関係へのサブスクリプションを維持しないためです。この機能は：
 
-* Prevents memory leaks from computed observables that are no longer referenced in an application but whose dependencies still exist.
-* Reduces computation overhead by not re-calculating computed observables whose value isn’t being observed.
+* すでにアプリケーションで参照されていないが、その依存関係がまだ存在している ComputedObservable によるメモリリークを防止します。
+* その値が観測されていない場合、ComputedObservable を再計算しないことで、計算によるオーバーヘッドを削減します。
 
-A pure computed observable automatically switches between two states based on whether it has `change` subscribers.
+PureComputedObservable は、その`change` サブスクライバに基づいて自動的に2つの状態の間で切り替わります。
 
-1. Whenever it has no `change` subscribers, it is * sleeping * . When entering the sleeping state, it disposes all subscriptions to its dependencies. During this state, it will not subscribe to any observables accessed in the evaluator function (although it does keep track of them). If the computed observable’s value is read while it is sleeping, it is automatically re-evaluated if any of its dependencies have changed.
+1. `change` サブスクライバを持っていないときは常に、 * sleeping * 状態です。 sleeping 状態に入る時は、その依存関係の全てのサブスクリプションは破棄されます。
+この状態の間は、評価関数内でアクセスしている全てのObservable は観測されません (Observable のトラッキングは保持され続けます)。もし、 ComputedObservable の値が sleeping 状態中に読み取られた場合、 その値はその依存関係のいずれかが変更されると自動的に再評価されます。
 
-2. Whenever it has any `change` subscribers, it is awake and * listening * . When entering the listening state, it immediately subscribes to any dependencies. In this state, it operates just like a regular computed observable, as described in [how dependency tracking works](#) .
+2. 何らかの `change` サブスクライバを持っている時は、目を覚ましており * listening * 状態です。リスニング状態に入ると、即座にすべての依存関係をサブスクライブします。
+この状態では、 [依存トラッキングの仕組み](./computed-dependency-tracking) で説明されているように、通常のComputedObservable のように動作します。
 
-#### Why “pure”?
+#### 何故 "pure" ?
 
-We’ve borrowed the term from [pure functions](#) because this feature is generally only applicable for computed observables whose evaluator is a pure function as follows:
+私たちはこの単語を、[pure functions](http://en.wikipedia.org/wiki/Pure_function) から借りてきました。なぜなら、この機能は一般的に、 その評価関数が以下のように pure function である ComputeObservable  のみに適用できるからです。
 
-1. Evaluating the computed observable should not cause any side effects.
-2. The value of the computed observable shouldn’t vary based on the number of evaluations or other “hidden” information. Its value should be based solely on the values of other observables in the application, which for the pure function definition, are considered its parameters.
+1. ComputedObservable の評価がいかなる副作用も引き起こさない。
+2. ComputedObservable の値は、 評価の数や、他の "隠された" 情報に基づいて変化すべきではない。その値は　pure function の定義において、その引数によって値が考慮されるのと同様に、アプリケーション内の他のobservable の値のみに基づく べきである。
 
-#### Syntax
+#### 構文
 
-The standard method of defining a pure computed observable is to use `ko.pureComputed` :
+PureComputedObservable を定義する標準的な方法は、 `ko.pureComputed` を使用することです:
 
 ```javascript
 this.fullName = ko.pureComputed(function() {
@@ -28,7 +31,7 @@ this.fullName = ko.pureComputed(function() {
 }, this);
 ```
 
-Alternatively, you can use the `pure` option with `ko.computed` :
+他の方法としては、 `ko.computed` と共に `pure` オプションを使用することも出来ます:
 
 ```javascript
 this.fullName = ko.computed(function() {
@@ -36,17 +39,22 @@ this.fullName = ko.computed(function() {
 }, this, { pure: true });
 ```
 
-For complete syntax, see the [computed observable reference](#) .
+完全な文法は、[ComputedObservable リファレンス](./computed-reference) を参照してください。
 
-### When to use a pure computed observable {#when-to-use-a-pure-computed-observable}
+### PureComputedObservable を使用すべき時 {#when-to-use-a-pure-computed-observable}
 
-You can use the pure feature for any computed observable that follows the [pure function guidelines](#). You’ll see the most benefit, though, when it is applied to application designs that involve persistent view models that are used and shared by temporary views and view models. Using pure computed observables in a persistent view model provides computation performance benefits. Using them in temporary view models provides memory management benefits.
+あなたは [pure function ガイドライン](./computed-pure#pure-computed-function-defined) に従って、全てのComputedObservable に対して Pure 機能を使用することができます。
 
-In the following example of a simple wizard interface, the `fullName` pure computed is only bound to the view during the final step and so is only updated when that step is active.
+一時的なビューとビューモデルによって使用され、共有される永続的なビューモデルを含むアプリケーションの設計に適用された場合、ほとんどの利益を得るでしょう。
+PureComputedObservable を永続的なビューモデル内で使用することは、計算のパフォーマンス上の利点を提供します。
+
+一時的なビューモデル内でそれらを使用することは、メモリ管理上の利点を提供します。
+
+以下のシンプルなウィザードインターフェイスの例では、`fullName` PureComputedObservable はその最終ステップのみでビューにバインドされ、そのステップがアクティブである時のみ更新されます。
 
 # (ここにライブビューが入ります)
 
-#### Source code: View
+#### ソースコード: ビュー
 
 ```html
 <div class="log" data-bind="text: computedLog"></div>
@@ -63,7 +71,7 @@ In the following example of a simple wizard interface, the `fullName` pure compu
 <p><button type="button" data-bind="click: next">Next</button></p>
 ```
 
-#### Source code: View model
+#### ソースコード: ビューモデル
 
 ```javascript
 function AppData() {
@@ -88,13 +96,13 @@ function AppData() {
 ko.applyBindings(new AppData());
 ```
 
-### When not to use a pure computed observable {#when-not-to-use-a-pure-computed-observable}
+### PureComputedObservable を使用しないほうがよい時 {#when-not-to-use-a-pure-computed-observable}
 
-#### Side effects
+#### 副作用
 
-You should not use the pure feature for a computed observable that is meant to perform an action when its dependencies change. Examples include:
+あなたは、その依存関係が変更されたときにアクションを実行することを意図する ComputedObservable では、PureComputedObservable を使用すべきではありません。例としては：
 
-* Using a computed observable to run a callback based on multiple observables.
+* 複数の Observable に基づいてコールバックを実行するために ComputedObservable を使用している場合。
 
 ```javascript
 ko.computed(function () {
@@ -103,7 +111,7 @@ ko.computed(function () {
 }, this);
 ```
 
-* In a binding’s init function, using a computed observable to update the bound element.
+* バインディングの init 関数内で、バインドされた要素を更新するために ComputedObservable を使用している場合。
 
 ```javascript
 ko.computed({
@@ -114,11 +122,13 @@ ko.computed({
 });
 ```
 
-The reason you shouldn’t use a pure computed if the evaluator has important side effects is simply that the evaluator will not run whenever the computed has no active subscribers (and so is sleeping). If it’s important for the evaluator to always run when dependencies change, use a [regular computed](#) instead.
+もし、評価が重要な副作用を持っている場合、PureComputedObservable を使用すべきでない理由としては、単にPureComputedObservable がアクティブなサブスクライバを持たない (つまり sleeping 状態である) 場合、評価が実行されないからです。
+依存関係の変更によって、常に評価を実行することが重要な場合は、代わりに [通常の ComputedObservable](./computedObservables) を使用します。
 
-### State-change notifications {#state-change-notifications}
+### 状態変化の通知 {#state-change-notifications}
 
-A pure computed observable notifies an `awake` event (using its current value) whenever it enters the listening state and notifies an `asleep` event (using an `undefined` value) whevener it enter the sleeping state. You won’t normally need to know about the internal state of your computed observables. But since the internal state can correspond to whether the computed observable is bound to the view or not, you might use that information to do some view-model initialization or cleanup.
+PureComputedObservableは、それが `listening` 状態に入るたびに  (その現在の値を使用して) `awake` イベントを通知し、それが `sleeping` 状態に入るたびに（ `undefined`値を使用して）`asleep`イベントを通知します。
+通常は、あなたは ComputedObservable の内部状態について知る必要はありません。しかし、内部状態はComputedObservable がビューにバインドされているかどうかに準ずるため、その情報を何らかのビューモデルの初期化やクリーンアップのために使用できるかもしれません。
 
 ```javascript
 this.someComputedThatWillBeBound = ko.pureComputed(function () {
@@ -134,4 +144,4 @@ this.someComputedThatWillBeBound.subscribe(function () {
 }, this, "asleep");
 ```
 
-(The `awake` event also applies to normal computed observables created with the `deferEvaluation` option.)
+( `awake`イベントは` deferEvaluation`オプションによって作成された通常の ComputedObservable にも適用されます。)
